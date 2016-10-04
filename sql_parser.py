@@ -14,25 +14,14 @@ db_password = configParser.get('dbconfig', 'password')
 connection = pymysql.connect(host='localhost',
                              user=db_username,
                              password=db_password,
-                             db='PythonSqlOptimizer',
+                             db='dist',
                              charset='utf8mb4',
                              cursorclass=pymysql.cursors.DictCursor)
 
-try:
-    with connection.cursor() as cursor:
-        # Create a new record
-        sql = "INSERT INTO `users` (`email`, `password`) VALUES (%s, %s)"
-        cursor.execute(sql, ('webmaster@python.org', 'very-secret'))
-
-    # connection is not autocommit by default. So you must commit to save
-    # your changes.
-    connection.commit()
-
-    with connection.cursor() as cursor:
-        # Read a single record
-        sql = "SELECT `id`, `password` FROM `users` WHERE `email`=%s"
-        cursor.execute(sql, ('webmaster@python.org',))
-        result = cursor.fetchone()
-        print(result)
-finally:
-    connection.close()
+cursor = connection.cursor()
+sql = "SELECT DISTINCT p1.developer FROM projects p1, projects p2 WHERE p1.developer = p2.developer AND p1.title <> p2.title"
+cursor.execute(sql)
+result = cursor.fetchall()
+for res in result:
+    print(res)
+connection.close()
