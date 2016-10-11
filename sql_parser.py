@@ -7,52 +7,48 @@ from collections import namedtuple
 sys.path.append("/root/Dev/incoq")
 from incoq.runtime import *
 
-configParser = configparser.RawConfigParser()
-configFilePath = r'dbconfig.ini'
-configParser.read(configFilePath)
-db_username = configParser.get('dbconfig', 'username')
-db_password = configParser.get('dbconfig', 'password')
+# configParser = configparser.RawConfigParser()
+# configFilePath = r'dbconfig.ini'
+# configParser.read(configFilePath)
+# db_username = configParser.get('dbconfig', 'username')
+# db_password = configParser.get('dbconfig', 'password')
 
-# Connect to the database
-connection = pymysql.connect(host='localhost',
-                             user=db_username,
-                             password=db_password,
-                             db='dist',
-                             charset='utf8mb4',
-                             cursorclass=pymysql.cursors.DictCursor)
+# # Connect to the database
+# connection = pymysql.connect(host='localhost',
+#                              user=db_username,
+#                              password=db_password,
+#                              db='dist',
+#                              charset='utf8mb4',
+#                              cursorclass=pymysql.cursors.DictCursor)
 
-cursor = connection.cursor()
-sql = "SELECT DISTINCT p1.developer FROM projects p1, projects p2 WHERE p1.developer = p2.developer AND p1.title <> p2.title"
-cursor.execute(sql)
-result = cursor.fetchall()
-for res in result:
-    pass
-    #print(res)
-connection.close()
+# cursor = connection.cursor()
+# sql = "SELECT DISTINCT p1.developer FROM projects p1, projects p2 WHERE p1.developer = p2.developer AND p1.title <> p2.title"
+# cursor.execute(sql)
+# result = cursor.fetchall()
+# for res in result:
+#     pass
+#     #print(res)
+# connection.close()
 
 
 DB = dict()
 class table:
     def __init__(self, attributes):
-        self.data = set()
+        self.data = Set()
         self.attributes = [a for a in attributes]
     def addItem(self, item):
-        newItem = Map()
+        newItem = Obj()
         idx = 0
         for attribute in self.attributes:
-            newItem[attribute] = item[idx]
+            newItem.__setattr__(attribute, item[idx])
             idx += 1
         self.data.add(newItem)
     def pretty_format(self):
-        res = '['
+        res = []
         for item in self.data:
-            res += '('
-            for attribute in self.attributes:
-                res += str(item[attribute])
-                res += ','
-            res += ')'
-        res += ']'
-        return res
+            res.append([item.__getattribute__(attribute) for attribute in self.attributes])
+        return str(res)
+        
 def parse(sql):
     parsed = sqlparse.parse(sql)[0]
     token = parsed.tokens[0]
@@ -97,14 +93,13 @@ def create_table(parsed):
             attributes = []
             for sub_token in token.tokens:
                 if type(sub_token).__name__ == 'Identifier':
-                    attributes.append(sub_token)
+                    attributes.append(str(sub_token))
             DB[tableName] = table(attributes)
 def select_from(parsed):
     pass
     
     
 parse('CREATE TABLE student (id int, name varchar, country varchar)')
-
 parse('INSERT INTO student VALUES (1,"Jieao","China")')
 parse('INSERT INTO student VALUES (2,"Zhu","USA")')
 print(DB)
