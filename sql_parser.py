@@ -4,6 +4,8 @@ import configparser
 import json
 import sys
 from collections import namedtuple
+sys.path.append("/root/Dev/incoq")
+from incoq.runtime import *
 
 configParser = configparser.RawConfigParser()
 configFilePath = r'dbconfig.ini'
@@ -31,9 +33,26 @@ connection.close()
 
 DB = dict()
 class table:
-    def __init__(self):
+    def __init__(self, attributes):
         self.data = set()
-    
+        self.attributes = [a for a in attributes]
+    def addItem(self, item):
+        newItem = Map()
+        idx = 0
+        for attribute in self.attributes:
+            newItem[attribute] = item[idx]
+            idx += 1
+        self.data.add(newItem)
+    def pretty_format(self):
+        res = '['
+        for item in self.data:
+            res += '('
+            for attribute in self.attributes:
+                res += str(item[attribute])
+                res += ','
+            res += ')'
+        res += ']'
+        return res
 def parse(sql):
     parsed = sqlparse.parse(sql)[0]
     token = parsed.tokens[0]
@@ -41,15 +60,16 @@ def parse(sql):
         return insert_into(parsed)
     elif type(token).__name__ == 'Token' and str(token).upper() == 'SELECT':
         return select_from(parsed)
+    elif type(token).__name__ == 'Token' and str(token).upper() == 'CREATE':
+        return create_table(parsed)
         
 # def resolve_identifier(sql):
 
 def insert_into(parsed):
     setTable = False
     setValue = False
-    table = None
+    tableName = None
     value = None
-    attributes = []
     for token in parsed.tokens:
         if type(token).__name__ == 'Token' and str(token).upper() == 'INTO':
             setTable = True
@@ -57,19 +77,38 @@ def insert_into(parsed):
             setValue = True
         elif type(token).__name__ == 'Identifier':
             if setTable:
-                table = str(token)
+                tableName = str(token)
         elif type(token).__name__ == 'Parenthesis':
             if setValue:
                 value = eval(str(token))
-                DB[table].add(value)
+                DB[tableName].addItem(value)
                 
                 
-# def create_table(parsed):
+def create_table(parsed):
+    setTable = False
+    tableName = None
+    for token in parsed.tokens:
+        if type(token).__name__ == 'Token' and str(token).upper() == 'TABLE':
+            setTable = True
+        elif type(token).__name__ == 'Identifier':
+            if setTable:
+                tableName = str(token)
+        elif type(token).__name__ == 'Parenthesis':
+            attributes = []
+            for sub_token in token.tokens:
+                if type(sub_token).__name__ == 'Identifier':
+                    attributes.append(sub_token)
+            DB[tableName] = table(attributes)
+def select_from(parsed):
+    pass
     
-# def select_from(parsed):
     
-DB['testTable'] = set()
-parse('insert into testTable values (1,2,3)')
-parse('insert into testTable values (2,3,4)')
-print(DB['testTable'])
+parse('CREATE TABLE student (id int, name varchar, country varchar)')
+
+parse('INSERT INTO student VALUES (1,"Jieao","China")')
+parse('INSERT INTO student VALUES (2,"Zhu","USA")')
+print(DB)
+print(DB['student'].pretty_format())
 # 'select subtable.name from (select * from person p1, person p2 where p1.name = p2.name and p1.country <> p2.country) sub_table'
+# 'insert into testTable values (1,2,3)'
+# 'CREATE TABLE student (id int, name varchar(255), country varchar(255))'
