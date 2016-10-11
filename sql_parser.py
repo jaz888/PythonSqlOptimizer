@@ -3,6 +3,7 @@ import pymysql.cursors
 import configparser
 import json
 import sys
+from collections import namedtuple
 
 configParser = configparser.RawConfigParser()
 configFilePath = r'dbconfig.ini'
@@ -28,11 +29,47 @@ for res in result:
 connection.close()
 
 
-
-# try to store data in namedtuple
-def select_from_tables_where(sql):
+DB = dict()
+class table:
+    def __init__(self):
+        self.data = set()
+    
+def parse(sql):
     parsed = sqlparse.parse(sql)[0]
-    for token in parsed.tokens:
-        print(type(token) , ': ' , token)
+    token = parsed.tokens[0]
+    if type(token).__name__ == 'Token' and str(token).upper() == 'INSERT':
+        return insert_into(parsed)
+    elif type(token).__name__ == 'Token' and str(token).upper() == 'SELECT':
+        return select_from(parsed)
         
-select_from_tables_where('select subtable.name from (select * from person p1, person p2 where p1.name = p2.name and p1.country <> p2.country) sub_table')
+# def resolve_identifier(sql):
+
+def insert_into(parsed):
+    setTable = False
+    setValue = False
+    table = None
+    value = None
+    attributes = []
+    for token in parsed.tokens:
+        if type(token).__name__ == 'Token' and str(token).upper() == 'INTO':
+            setTable = True
+        elif type(token).__name__ == 'Token' and str(token).upper() == 'VALUES':
+            setValue = True
+        elif type(token).__name__ == 'Identifier':
+            if setTable:
+                table = str(token)
+        elif type(token).__name__ == 'Parenthesis':
+            if setValue:
+                value = eval(str(token))
+                DB[table].add(value)
+                
+                
+# def create_table(parsed):
+    
+# def select_from(parsed):
+    
+DB['testTable'] = set()
+parse('insert into testTable values (1,2,3)')
+parse('insert into testTable values (2,3,4)')
+print(DB['testTable'])
+# 'select subtable.name from (select * from person p1, person p2 where p1.name = p2.name and p1.country <> p2.country) sub_table'
