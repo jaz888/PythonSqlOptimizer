@@ -5,33 +5,26 @@ import json
 import sys
 import re
 from collections import namedtuple
+import time
 sys.path.append("/root/Dev/incoq")
 from incoq.runtime import *
 
-# configParser = configparser.RawConfigParser()
-# configFilePath = r'dbconfig.ini'
-# configParser.read(configFilePath)
-# db_username = configParser.get('dbconfig', 'username')
-# db_password = configParser.get('dbconfig', 'password')
+time_total = 0.0
 
-# # Connect to the database
-# connection = pymysql.connect(host='localhost',
-#                              user=db_username,
-#                              password=db_password,
-#                              db='dist',
-#                              charset='utf8mb4',
-#                              cursorclass=pymysql.cursors.DictCursor)
-
-# cursor = connection.cursor()
-# sql = "SELECT DISTINCT p1.developer FROM projects p1, projects p2 WHERE p1.developer = p2.developer AND p1.title <> p2.title"
-# cursor.execute(sql)
-# result = cursor.fetchall()
-# for res in result:
-#     pass
-#     #print(res)
-# connection.close()
-
-
+def running_time(func):
+    def wrapper(*args):
+        global time_total
+        start_time = time.time()
+        res = func(*args)
+        print(*args)
+        consumed = time.time() - start_time
+        print("--- %s seconds ---" % consumed)
+        time_total += consumed
+        print()
+        return res
+    return wrapper
+    
+    
 DB = dict()
 class table:
     def __init__(self, attributes):
@@ -51,7 +44,7 @@ class table:
         return str(res)
     def select(self, cond):
         selection_exp = "QUERY('Q', {entry for entry in self.data " + cond + "})"
-        print(selection_exp)
+        # print(selection_exp)
         resEntrySet = eval(selection_exp)
         resTable = table(self.attributes)
         for entry in resEntrySet:
@@ -60,7 +53,8 @@ class table:
                 newItem.__setattr__(attribute, entry.__getattribute__(attribute))
             resTable.data.add(newItem)
         return resTable
-        
+
+@running_time 
 def parse(sql):
     parsed = sqlparse.parse(sql)[0]
     token = parsed.tokens[0]
@@ -107,7 +101,11 @@ def create_table(parsed):
                 if type(sub_token).__name__ == 'Identifier':
                     attributes.append(str(sub_token))
             DB[tableName] = table(attributes)
-            
+      
+      
+
+    
+
 # should return a table
 def select_from(parsed):
     if len(parsed.tokens) == 1:
@@ -116,9 +114,10 @@ def select_from(parsed):
     stage = 0
     _table = None
     where = None
+    if_exp = None
     for token in parsed.tokens:
-        #print(token)
-        #print(type(token).__name__)
+        # print("token",token)
+        # print("type",type(token).__name__)
         if type(token).__name__ == 'Token' and str(token).upper() == 'SELECT':
             stage += 1
         elif stage == 1 and type(token).__name__ == 'IdentifierList':
@@ -129,14 +128,17 @@ def select_from(parsed):
         elif stage == 1 and type(token).__name__ == 'Identifier':
             attributes.append(str(token))
             stage += 1
+        elif stage == 1 and type(token).__name__ == 'Token' and str(token) == "*":
+            attributes = str(token)
+            stage += 1
         elif stage == 2 and str(token).upper() == 'FROM':
             stage += 1
         elif stage == 3:
             if type(token).__name__ == "Parenthesis":
-                _table = select_from(parse(re.search( "\((.*)\)" ,str(token)).group(1)))
+                partial_sql = re.search( "\((.*)\)" ,str(token)).group(1)
+                _table = parse(partial_sql)
                 stage += 1
             elif type(token).__name__ == "Identifier":
-                
                 _table = DB[str(token)]
                 stage += 1
         elif stage == 4 and type(token).__name__ == 'Where':
@@ -149,20 +151,30 @@ def select_from(parsed):
             stage += 1
         else:
             pass
+    res_with_all_col = None
+    # print(_table)
+    if(not if_exp):
+        res_with_all_col = _table
+    else:
+        res_with_all_col = _table.select(if_exp)
+    res_table = table(res_with_all_col.attributes if isinstance(attributes, str) else attributes) 
+    for entry in res_with_all_col.data:
+        newItem = Obj()
+        for attribute in res_table.attributes:
+            newItem.__setattr__(attribute, entry.__getattribute__(attribute))
+        res_table.data.add(newItem)
+    return res_table
         
-    res = _table.select(if_exp)
-    
-    return res
-        
-        
+
     
     
 parse('CREATE TABLE student (id int, name varchar, country varchar)')
 parse('INSERT INTO student VALUES (1,"Jieao","China")')
 parse('INSERT INTO student VALUES (2,"Zhu","USA")')
-selectedData = parse('SELECT name FROM student where id == 1')
-print(selectedData)
-print(selectedData.pretty_format())
+selectedData = parse('SELECT name FROM (SELECT * FROM student where id == 2)')
+print("TOTAL")
+print("--- %s seconds ---" % time_total)
+# print(selectedData.pretty_format())
 # print(DB)
 # print(DB['student'].pretty_format())
 # 'select subtable.name from (select * from person p1, person p2 where p1.name = p2.name and p1.country <> p2.country) sub_table'
