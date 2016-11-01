@@ -46,6 +46,7 @@ class table:
         
         
 def query(name_table_mapping, conditions):
+    # print("condition:", conditions)
     # print(name_table_mapping)
     # selection_exp = "QUERY('Q', {entry for entry in self.data " + cond + "})"
     # # print(selection_exp)
@@ -66,41 +67,42 @@ def query(name_table_mapping, conditions):
     for table_name in name_table_mapping.keys():
         default_table_name = table_name
     updated_conditions = []
-    for condition in conditions:
-        parsed = sqlparse.parse(condition)[0]
-        for token in parsed.tokens:
-            tokenStr = str(token)
-            if "<>" in tokenStr:
-                tokenStr = tokenStr.replace("<>", "!=", 1)
-                splitted = tokenStr.split("!=", 1)
-                for idx in range(len(splitted)):
-                    splitted[idx] = splitted[idx].strip()
-                    if "." not in splitted[idx] and splitted[idx] in name_table_mapping[default_table_name].attributes:
-                        splitted[idx] = default_table_name + "." + splitted[idx]
-                tokenStr = "!=".join(splitted)
-            elif ">=" in tokenStr:
-                splitted = tokenStr.split(">=", 1)
-                for idx in range(len(splitted)):
-                    splitted[idx] = splitted[idx].strip()
-                    if "." not in splitted[idx] and splitted[idx] in name_table_mapping[default_table_name].attributes:
-                        splitted[idx] = default_table_name + "." + splitted[idx]
-                tokenStr = ">=".join(splitted)
-            elif "<=" in tokenStr:
-                splitted = tokenStr.split("<=", 1)
-                for idx in range(len(splitted)):
-                    splitted[idx] = splitted[idx].strip()
-                    if "." not in splitted[idx] and splitted[idx] in name_table_mapping[default_table_name].attributes:
-                        splitted[idx] = default_table_name + "." + splitted[idx]
-                tokenStr = "<=".join(splitted)
-            elif "=" in tokenStr:
-                tokenStr = tokenStr.replace("=", "==", 1)
-                splitted = tokenStr.split("==", 1)
-                for idx in range(len(splitted)):
-                    splitted[idx] = splitted[idx].strip()
-                    if "." not in splitted[idx] and splitted[idx] in name_table_mapping[default_table_name].attributes:
-                        splitted[idx] = default_table_name + "." + splitted[idx]
-                tokenStr = "==".join(splitted)
-            updated_conditions.append(tokenStr)
+    if conditions:
+        for condition in conditions:
+            parsed = sqlparse.parse(condition)[0]
+            for token in parsed.tokens:
+                tokenStr = str(token)
+                if "<>" in tokenStr:
+                    tokenStr = tokenStr.replace("<>", "!=", 1)
+                    splitted = tokenStr.split("!=", 1)
+                    for idx in range(len(splitted)):
+                        splitted[idx] = splitted[idx].strip()
+                        if "." not in splitted[idx] and splitted[idx] in name_table_mapping[default_table_name].attributes:
+                            splitted[idx] = default_table_name + "." + splitted[idx]
+                    tokenStr = "!=".join(splitted)
+                elif ">=" in tokenStr:
+                    splitted = tokenStr.split(">=", 1)
+                    for idx in range(len(splitted)):
+                        splitted[idx] = splitted[idx].strip()
+                        if "." not in splitted[idx] and splitted[idx] in name_table_mapping[default_table_name].attributes:
+                            splitted[idx] = default_table_name + "." + splitted[idx]
+                    tokenStr = ">=".join(splitted)
+                elif "<=" in tokenStr:
+                    splitted = tokenStr.split("<=", 1)
+                    for idx in range(len(splitted)):
+                        splitted[idx] = splitted[idx].strip()
+                        if "." not in splitted[idx] and splitted[idx] in name_table_mapping[default_table_name].attributes:
+                            splitted[idx] = default_table_name + "." + splitted[idx]
+                    tokenStr = "<=".join(splitted)
+                elif "=" in tokenStr:
+                    tokenStr = tokenStr.replace("=", "==", 1)
+                    splitted = tokenStr.split("==", 1)
+                    for idx in range(len(splitted)):
+                        splitted[idx] = splitted[idx].strip()
+                        if "." not in splitted[idx] and splitted[idx] in name_table_mapping[default_table_name].attributes:
+                            splitted[idx] = default_table_name + "." + splitted[idx]
+                    tokenStr = "==".join(splitted)
+                updated_conditions.append(tokenStr)
                 
     # does it need to pass conditions to join_table function ?
     # hence it can cut some branches while traversing
@@ -118,9 +120,13 @@ def query(name_table_mapping, conditions):
     res_attributes = []
     for table_alias in name_table_mapping.keys():
         for attribute in name_table_mapping[table_name].attributes:
+            # if table_alias != default_table_name:
+            #     res_attributes.append(table_alias+"."+attribute)
+            # else:
+            #     res_attributes.append(attribute)
             res_attributes.append(table_alias+"."+attribute)
     res_table = table(res_attributes)
-    # print(res_attributes)
+    # print("res attri:", res_attributes)
     
     # fill up table content
     for item in result:
@@ -130,6 +136,10 @@ def query(name_table_mapping, conditions):
             table_alias = x
             partial_data = next(it)
             for attribute in name_table_mapping[table_alias].attributes:
+                # if table_alias != default_table_name:
+                #     item_obj.__setattr__(table_alias+"."+attribute, partial_data.__getattribute__(attribute))
+                # else:
+                #     item_obj.__setattr__(attribute, partial_data.__getattribute__(attribute))
                 item_obj.__setattr__(table_alias+"."+attribute, partial_data.__getattribute__(attribute))
         res_table.data.add(item_obj)
     return res_table
@@ -146,7 +156,8 @@ def generate_query(name_table_mapping, conditions):
     query_str += ") "
     for table_name in name_table_mapping.keys():
         query_str += "for " + table_name + " in name_table_mapping['" + table_name + "'].data "
-    query_str += " if "
+    if conditions:
+        query_str += " if " 
     for condition in conditions:
         query_str += condition
         query_str += " "
@@ -159,7 +170,7 @@ def join_tables(name_table_mapping):
     
     
 
-@running_time 
+#@running_time 
 def parse(sql):
     parsed = sqlparse.parse(sql)[0]
     token = parsed.tokens[0]
@@ -221,6 +232,7 @@ def select_from(parsed):
     where = None
     conditions = None
     join_table_mapping = dict()
+    default_table_name = "$$_default_table_name_$$"
     for token in parsed.tokens:
         # print(token)
         # print("type",type(token).__name__)
@@ -245,10 +257,12 @@ def select_from(parsed):
                 _table = parse(partial_sql)
                 join_table_mapping['anno'] = _table
                 stage += 1
+                default_table_name = 'anno'
             elif type(token).__name__ == "Identifier":
                 _table = DB[str(token)]
                 join_table_mapping[str(token)] = _table
                 stage += 1
+                default_table_name = str(token)
             elif type(token).__name__ == "IdentifierList":
                 for identifier in token:
                     if type(identifier).__name__ == "Identifier":
@@ -257,6 +271,7 @@ def select_from(parsed):
                             join_table_mapping[identifier.split(" ")[1]] = identifier.split(" ")[0]
                         else:
                             join_table_mapping[identifier] = identifier
+                            default_table_name = identifier
                 for table_name in join_table_mapping:
                     join_table_mapping[table_name] = DB[join_table_mapping[table_name]]
                 stage += 1
@@ -285,11 +300,17 @@ def select_from(parsed):
     
     res_with_all_col = query(join_table_mapping, conditions)
     # print(res_with_all_col.data)
-    res_table = table(res_with_all_col.attributes if isinstance(attributes, str) else attributes)
+    attributes_formatted = res_with_all_col.attributes[:]
+    for i in range(len(attributes_formatted)):
+        if default_table_name+"." in attributes_formatted[i]:
+            attributes_formatted[i] = attributes_formatted[i].replace(default_table_name+".", "", 1)
+    res_table = table(attributes_formatted if isinstance(attributes, str) else attributes)
+    
+    #print(res_with_all_col.data)
     for entry in res_with_all_col.data:
         newItem = Obj()
-        for attribute in res_table.attributes:
-            newItem.__setattr__(attribute, entry.__getattribute__(attribute))
+        for attribute in res_with_all_col.attributes:
+            newItem.__setattr__(attribute if default_table_name+"." not in attribute else attribute.replace(default_table_name+".", "", 1), entry.__getattribute__(attribute))
         res_table.data.add(newItem)
     
     # filter out attributes
@@ -312,12 +333,11 @@ parse('INSERT INTO student VALUES (8,"Jieao8",26)')
 # selectedData = parse('SELECT name FROM (SELECT * FROM student where id == 2)')
 # selectedData = parse('SELECT name FROM (SELECT * FROM student where id == 2)')
 selectedData = parse('SELECT * FROM student WHERE age <> 26')
-# print(selectedData.data)
+print(selectedData.pretty_format())
 selectedData = parse('SELECT s1.name FROM student s1, student s2 WHERE s1.age = s2.age AND s1.name <> s2.name')
-# print(selectedData.data)
-# selectedData = parse('SELECT name FROM (SELECT * FROM student where id == 2)')
-
-# print(selectedData.pretty_format())
+print(selectedData.pretty_format())
+selectedData = parse('SELECT name FROM (SELECT * FROM student where id = 2)')
+print(selectedData.pretty_format())
 # print(DB)
 # print(DB['student'].pretty_format())
 # 'select subtable.name from (select * from person p1, person p2 where p1.name = p2.name and p1.country <> p2.country) sub_table'
