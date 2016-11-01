@@ -170,7 +170,7 @@ def join_tables(name_table_mapping):
     
     
 
-#@running_time 
+@running_time 
 def parse(sql):
     parsed = sqlparse.parse(sql)[0]
     token = parsed.tokens[0]
@@ -310,7 +310,9 @@ def select_from(parsed):
     for entry in res_with_all_col.data:
         newItem = Obj()
         for attribute in res_with_all_col.attributes:
-            newItem.__setattr__(attribute if default_table_name+"." not in attribute else attribute.replace(default_table_name+".", "", 1), entry.__getattribute__(attribute))
+            new_attribute_name = attribute if default_table_name+"." not in attribute else attribute.replace(default_table_name+".", "", 1)
+            if isinstance(attributes, str) or new_attribute_name in attributes:
+                newItem.__setattr__(new_attribute_name, entry.__getattribute__(attribute))
         res_table.data.add(newItem)
     
     # filter out attributes
