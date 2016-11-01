@@ -45,9 +45,11 @@ class table:
         
         
         
-def query(name_table_mapping, cond):
+def query(name_table_mapping, conditions):
+    # print(name_table_mapping)
     # selection_exp = "QUERY('Q', {entry for entry in self.data " + cond + "})"
     # # print(selection_exp)
+    
     # resEntrySet = eval(selection_exp)
     # resTable = table(self.attributes)
     # for entry in resEntrySet:
@@ -58,12 +60,88 @@ def query(name_table_mapping, cond):
     # return resTable
     
     # make a joined table
+    
+    # check & modify format of conditions
+    default_table_name = None
+    for table_name in name_table_mapping.keys():
+        default_table_name = table_name
+    updated_conditions = []
+    for condition in conditions:
+        parsed = sqlparse.parse(condition)[0]
+        for token in parsed.tokens:
+            tokenStr = str(token)
+            if "<>" in tokenStr:
+                tokenStr = tokenStr.replace("<>", "!=", 1)
+                splitted = tokenStr.split("!=", 1)
+                for idx in range(len(splitted)):
+                    splitted[idx] = splitted[idx].strip()
+                    if "." not in splitted[idx] and splitted[idx] in name_table_mapping[default_table_name].attributes:
+                        splitted[idx] = default_table_name + "." + splitted[idx]
+                tokenStr = "!=".join(splitted)
+            elif ">=" in tokenStr:
+                splitted = tokenStr.split(">=", 1)
+                for idx in range(len(splitted)):
+                    splitted[idx] = splitted[idx].strip()
+                    if "." not in splitted[idx] and splitted[idx] in name_table_mapping[default_table_name].attributes:
+                        splitted[idx] = default_table_name + "." + splitted[idx]
+                tokenStr = ">=".join(splitted)
+            elif "<=" in tokenStr:
+                splitted = tokenStr.split("<=", 1)
+                for idx in range(len(splitted)):
+                    splitted[idx] = splitted[idx].strip()
+                    if "." not in splitted[idx] and splitted[idx] in name_table_mapping[default_table_name].attributes:
+                        splitted[idx] = default_table_name + "." + splitted[idx]
+                tokenStr = "<=".join(splitted)
+            elif "=" in tokenStr:
+                tokenStr = tokenStr.replace("=", "==", 1)
+                splitted = tokenStr.split("==", 1)
+                for idx in range(len(splitted)):
+                    splitted[idx] = splitted[idx].strip()
+                    if "." not in splitted[idx] and splitted[idx] in name_table_mapping[default_table_name].attributes:
+                        splitted[idx] = default_table_name + "." + splitted[idx]
+                tokenStr = "==".join(splitted)
+            updated_conditions.append(tokenStr)
+                
+    # does it need to pass conditions to join_table function ?
+    # hence it can cut some branches while traversing
+    # joined = join_tables(name_table_mapping)
+    query_str = generate_query(name_table_mapping, updated_conditions)
+    #print("query str : ", query_str)
+    # result = eval(query_str)
+    # result = eval("[(s1,s2) for s1 in name_table_mapping['s1'].data for s2 in name_table_mapping['s2'].data  if s1.age==s2.age and s1.name!=s2.name ]")
+    # g = globals()
+    # g['name_table_mapping'] = name_table_mapping
+    # result = eval("[(s1,s2) for s1 in name_table_mapping['s1'].data for s2 in name_table_mapping['s2'].data  if s1.age==s2.age and s1.name!=s2.name ]", {"name_table_mapping": name_table_mapping})
+    print(query_str)
+    result = eval(query_str, {"name_table_mapping":name_table_mapping, "QUERY":QUERY})
+    
+    print(result)
+    
+def generate_query(name_table_mapping, conditions):
+    # for s2 in name_table_mapping["s2"] if s2.age == 26
+    query_str = "QUERY('Q', {("
+    #query_str = "[{"
+    
+    for table_name in name_table_mapping.keys():
+        query_str += "'" + table_name + "'," + table_name + ","
+    query_str = query_str[:-1]
+    query_str += ") "
+    for table_name in name_table_mapping.keys():
+        query_str += "for " + table_name + " in name_table_mapping['" + table_name + "'].data "
+    query_str += " if "
+    for condition in conditions:
+        query_str += condition
+        query_str += " "
+    query_str += "})"
+    # query_str += "]"
+    return query_str
+    
+def join_tables(name_table_mapping):
     pass
     
     
-    
 
-@running_time 
+#@running_time 
 def parse(sql):
     parsed = sqlparse.parse(sql)[0]
     token = parsed.tokens[0]
@@ -169,6 +247,9 @@ def select_from(parsed):
             for cond in token:
                 if type(cond).__name__ != "Token":
                     conditions.append(str(cond))
+                else:
+                    if str(cond).strip() != "" and str(cond).upper() != "WHERE":
+                        conditions.append(str(cond).lower())
             stage += 1
         else:
             pass
@@ -191,18 +272,19 @@ def select_from(parsed):
     
     
 parse('CREATE TABLE student (id int, name varchar, age varchar)')
-parse('INSERT INTO student VALUES (1,"Jieao1","21")')
-parse('INSERT INTO student VALUES (2,"Jieao2","22")')
-parse('INSERT INTO student VALUES (3,"Jieao3","23")')
-parse('INSERT INTO student VALUES (4,"Jieao4","24")')
-parse('INSERT INTO student VALUES (5,"Jieao5","25")')
-parse('INSERT INTO student VALUES (6,"Jieao6","26")')
-parse('INSERT INTO student VALUES (7,"Jieao7","26")')
-parse('INSERT INTO student VALUES (8,"Jieao8","26")')
+parse('INSERT INTO student VALUES (1,"Jieao1",21)')
+parse('INSERT INTO student VALUES (2,"Jieao2",22)')
+parse('INSERT INTO student VALUES (3,"Jieao3",23)')
+parse('INSERT INTO student VALUES (4,"Jieao4",24)')
+parse('INSERT INTO student VALUES (5,"Jieao5",25)')
+parse('INSERT INTO student VALUES (6,"Jieao6",26)')
+parse('INSERT INTO student VALUES (7,"Jieao7",26)')
+parse('INSERT INTO student VALUES (8,"Jieao8",26)')
 # selectedData = parse('SELECT name FROM (SELECT * FROM student where id == 2)')
 # selectedData = parse('SELECT name FROM (SELECT * FROM student where id == 2)')
 # selectedData = parse('SELECT name FROM (SELECT * FROM student where id == 2)')
-selectedData = parse('SELECT * FROM student s1, student s2 WHERE s1.age == s2.age AND s1.name != s2.name')
+# selectedData = parse('SELECT * FROM student WHERE age <> 26')
+selectedData = parse('SELECT * FROM student s1, student s2 WHERE s1.age = s2.age AND s1.name <> s2.name')
 
 # selectedData = parse('SELECT name FROM (SELECT * FROM student where id == 2)')
 # print("TOTAL")
