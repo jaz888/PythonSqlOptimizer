@@ -17,7 +17,19 @@ sql_incoq_mapping = {}
 
 # insert output file below
 
-## REPLACE ME ##
+def func0(name_table_mapping, QUERY):
+	return QUERY('Q0', {('student',student) for student in name_table_mapping['student'].data  if student.age!=26 })
+sql_incoq_mapping['SELECT * FROM student WHERE age <> 26'] = func0
+def func1(name_table_mapping, QUERY):
+	return QUERY('Q1', {('s2',s2,'s1',s1) for s2 in name_table_mapping['s2'].data for s1 in name_table_mapping['s1'].data  if s1.age==s2.age and s1.name!=s2.name })
+sql_incoq_mapping['SELECT s1.name FROM student s1, student s2 WHERE s1.age = s2.age AND s1.name <> s2.name'] = func1
+def func2(name_table_mapping, QUERY):
+	return QUERY('Q2', {('student',student) for student in name_table_mapping['student'].data  if student.id==2 })
+sql_incoq_mapping['SELECT * FROM student where id = 2'] = func2
+def func3(name_table_mapping, QUERY):
+	return QUERY('Q3', {('anno',anno) for anno in name_table_mapping['anno'].data })
+sql_incoq_mapping['SELECT name FROM (SELECT * FROM student where id = 2)'] = func3
+
 
 # insert output file above
 
@@ -129,7 +141,6 @@ class DB:
             # g['name_table_mapping'] = name_table_mapping
             # result = eval("[(s1,s2) for s1 in name_table_mapping['s1'].data for s2 in name_table_mapping['s2'].data  if s1.age==s2.age and s1.name!=s2.name ]", {"name_table_mapping": name_table_mapping})
             # print(query_str)
-            print("eval:" + query_str)
             result = eval(query_str, {"name_table_mapping":name_table_mapping, "QUERY":QUERY})
             
             with open("middle.txt", "a") as myfile:
@@ -369,9 +380,9 @@ print("--- %s seconds ---" % time_total)
 
 if len(sql_incoq_mapping) == 0:
     with open('sql_parser.py', 'r') as source_code_file:
-        os.system('export PYENV_ROOT="/root/.pyenv" && export PATH="/root/.pyenv/bin:$PATH" && eval "$(pyenv init -)" &&cd .. && cd incoq-mars && pyenv local 3.4.3 && python -m incoq ../PythonSqlOptimizer/middle.txt ../PythonSqlOptimizer/middle2.txt')
-        with open('middle2.txt', 'r') as middle_source_code_file:
-            middle_source_code = middle_source_code_file.read()
-            with open('sql_parser_incoq.py', 'w+') as final_code_file:
-                final_code_file.write(source_code_file.read().replace('## REPLACE ME ##', "#"+middle_source_code, 1))
-            
+        with open('middle.txt', 'r') as middle_file:
+            middle_mapping = middle_file.read()
+            os.system('export PYENV_ROOT="/root/.pyenv" && export PATH="/root/.pyenv/bin:$PATH" && eval "$(pyenv init -)" &&cd .. && cd incoq-mars && pyenv local 3.4.3 && python -m incoq ../PythonSqlOptimizer/middle.txt ../PythonSqlOptimizer/middle2.txt')
+            source_code = source_code_file.read().replace('## REPLACE ME ##', middle_mapping, 1)
+            with open('sql_parser_mid.py', 'w+') as middle_source_code_file:
+                middle_source_code_file.write(source_code)
