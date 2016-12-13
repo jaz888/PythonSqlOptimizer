@@ -167,38 +167,42 @@ def main():
     res = Set()
     for group in groups:
         
-        # sum_base_price =  QUERY('Q2', {  item.l_extendedprice for item in resFull if item.l_returnflag == group[0] and item.l_linestatus == group[1]   }   )
         # sum_base_price = sum(sum_base_price)
         
-        sum_base_price = 0.0
-        sum_qty = 0.0
-        sum_charge = 0.0
-        count = 0
+        # sum_base_price = 0.0
+        # sum_qty = 0.0
+        # sum_charge = 0.0
+        # count = 0
         
+        sum_base_price =  QUERY('Q2', {item.l_extendedprice for item in resFull if item.l_returnflag == group[0] and item.l_linestatus == group[1]   }   )
+        sum_base_price = sum(sum_base_price)
+        sum_qty =  QUERY('Q3', {item.l_quantity for item in resFull if item.l_returnflag == group[0] and item.l_linestatus == group[1] } )
+        sum_qty = sum(sum_qty)
+        sum_disc_price = QUERY('Q4',  {item.l_extendedprice * (1.0 - item.l_discount) for item in resFull if item.l_returnflag == group[0] and item.l_linestatus == group[1] } )
+        sum_disc_price = sum(sum_disc_price)
+        sum_charge = QUERY('Q5',  {item.l_extendedprice * (1.0 - item.l_discount) * (1.0 + item.l_tax) for item in resFull if item.l_returnflag == group[0] and item.l_linestatus == group[1] } )
+        sum_charge = sum(sum_charge)
         
-        # sum_qty = sum((item.l_quantity for item in resFull if item.l_returnflag == group[0] and item.l_linestatus == group[1]))
-        # sum_disc_price = sum(item.l_extendedprice * (1.0 - item.l_discount) for item in resFull if item.l_returnflag == group[0] and item.l_linestatus == group[1])
-        # sum_charge = sum(item.l_extendedprice * (1.0 - item.l_discount) * (1.0 + item.l_tax) for item in resFull if item.l_returnflag == group[0] and item.l_linestatus == group[1])
-        
-        # count = len( [ item for item in resFull if item.l_returnflag == group[0] and item.l_linestatus == group[1] ])
-        
-        # avg_qty =sum_qty / count
-        # avg_price = sum_base_price / count
-        # avg_disc = sum(item.l_discount for item in resFull if item.l_returnflag == group[0] and item.l_linestatus == group[1]) / count
-        # count = len({item for item in resFull if item.l_returnflag == group[0] and item.l_linestatus == group[1]})
-        
-        for item in resFull:
-            if item.l_returnflag == group[0] and item.l_linestatus == group[1]:
-                sum_base_price = sum_base_price + item.l_extendedprice
-                sum_qty = sum_qty + item.l_quantity
-                sum_disc_price = sum_disc_price + item.l_extendedprice * (1.0 - item.l_discount)
-                sum_charge = sum_charge + item.l_extendedprice * (1.0 - item.l_discount) * (1.0 + item.l_tax)
-                sum_disc = sum_disc + item.l_discount
-                count = count + 1
+        count = QUERY('Q6',  { item for item in resFull if item.l_returnflag == group[0] and item.l_linestatus == group[1] } )
+        count = len(count)
         
         avg_qty = sum_qty / count
         avg_price = sum_base_price / count
-        avg_disc = sum_disc / count
+        avg_disc = QUERY('Q7',  {item.l_discount for item in resFull if item.l_returnflag == group[0] and item.l_linestatus == group[1] } )
+        avg_disc = sum(avg_disc) / count
+        
+        # for item in resFull:
+        #     if item.l_returnflag == group[0] and item.l_linestatus == group[1]:
+        #         sum_base_price = sum_base_price + item.l_extendedprice
+        #         sum_qty = sum_qty + item.l_quantity
+        #         sum_disc_price = sum_disc_price + item.l_extendedprice * (1.0 - item.l_discount)
+        #         sum_charge = sum_charge + item.l_extendedprice * (1.0 - item.l_discount) * (1.0 + item.l_tax)
+        #         sum_disc = sum_disc + item.l_discount
+        #         count = count + 1
+        
+        # avg_qty = sum_qty / count
+        # avg_price = sum_base_price / count
+        # avg_disc = sum_disc / count
         
         
         tmpObj = Obj()
